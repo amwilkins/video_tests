@@ -17,3 +17,14 @@ press **Esc**  or **q** to exit.
 Draw with the mouse, right-click to remove the drawings.  
 Green color will be detected and drawn to screen as well.  
 
+## Commands
+
+Left-click - draw
+Right-click - clear
+Space - toggle camera
+q - exit
+Escape - exit
+Backspace - reset drawing
+c - reset drawing
+
+
