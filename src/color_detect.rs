@@ -13,7 +13,12 @@ pub struct ColorRange {
     pub v_high: i32,
 }
 
-pub fn detect_and_draw(overlay: &mut Mat, frame: &Mat, range: &ColorRange) -> Result<()> {
+pub fn detect_and_draw(
+    overlay: &mut Mat,
+    frame: &Mat,
+    range: &ColorRange,
+    color: Scalar,
+) -> Result<()> {
     // hsv color
     let mut hsv = Mat::default();
     imgproc::cvt_color(frame, &mut hsv, imgproc::COLOR_BGR2HSV, 0)?;
@@ -41,7 +46,8 @@ pub fn detect_and_draw(overlay: &mut Mat, frame: &Mat, range: &ColorRange) -> Re
             overlay,
             Point::new(p.x, p.y),
             2,
-            Scalar::new(0.0, 255.0, 0.0, 0.0), // green for now
+            color,
+            //Scalar::new(0.0, 255.0, 0.0, 0.0), // green for now
             -1,
             imgproc::LINE_8,
             0,

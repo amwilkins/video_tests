@@ -69,22 +69,44 @@ fn main() -> opencv::Result<()> {
             }
         }
 
-        // blend overlay onto frame
         let frame_clone = frame.clone();
+
         {
             let mut guard = overlay.lock().unwrap();
 
+            // draw based on mode
             if let Some(ref mut overlay_mat) = *guard {
-                // set the color to detect
+                // draw green
                 let detect_green = ColorRange {
                     h_low: 40,
-                    s_low: 50,
-                    v_low: 100,
-                    h_high: 90,
+                    s_low: 60,
+                    v_low: 90,
+                    h_high: 75,
                     s_high: 255,
                     v_high: 255,
                 };
-                detect_and_draw(overlay_mat, &frame, &detect_green)?;
+                detect_and_draw(
+                    overlay_mat,
+                    &frame,
+                    &detect_green,
+                    Scalar::new(0.0, 255.0, 0.0, 0.0),
+                )?;
+
+                // draw blue
+                let detect_blue = ColorRange {
+                    h_low: 90,
+                    s_low: 200,
+                    v_low: 200,
+                    h_high: 115,
+                    s_high: 255,
+                    v_high: 240,
+                };
+                detect_and_draw(
+                    overlay_mat,
+                    &frame,
+                    &detect_blue,
+                    Scalar::new(255.0, 20.0, 20.0, 0.0),
+                )?;
 
                 // paint camera to black
                 if !camera_enabled {
