@@ -45,10 +45,11 @@ fn main() -> opencv::Result<()> {
         }
     }));
 
-    // FPS counter
+    // SETUP
     let mut frame_count = 0u32;
     let mut last_time = Instant::now();
     let mut current_fps = 0.0;
+    let mut camera_enabled = false;
 
     highgui::set_mouse_callback("Screen", mouse_cb)?;
 
@@ -75,7 +76,7 @@ fn main() -> opencv::Result<()> {
 
             if let Some(ref mut overlay_mat) = *guard {
                 // set the color to detect
-                let target_color = ColorRange {
+                let detect_green = ColorRange {
                     h_low: 40,
                     s_low: 50,
                     v_low: 100,
@@ -83,10 +84,17 @@ fn main() -> opencv::Result<()> {
                     s_high: 255,
                     v_high: 255,
                 };
-                detect_and_draw(overlay_mat, &frame, &target_color)?;
+                detect_and_draw(overlay_mat, &frame, &detect_green)?;
 
-                //combine
-                add_weighted(&frame_clone, 1.0, overlay_mat, 1.0, 0.0, &mut frame, -1)?;
+                // paint camera to black
+                if !camera_enabled {
+                    frame.set_to(&Scalar::all(0.0), &Mat::default())?;
+                    // draw onto screen
+                    overlay_mat.copy_to(&mut frame)?;
+                } else {
+                    //combine
+                    add_weighted(&frame_clone, 1.0, overlay_mat, 1.0, 0.0, &mut frame, -1)?;
+                }
             }
         }
 
@@ -103,7 +111,7 @@ fn main() -> opencv::Result<()> {
             "Resolution: {}x{}\nFPS: {:.1}",
             frame.cols(),
             frame.rows(),
-            current_fps
+            current_fps,
         );
         imgproc::put_text(
             &mut frame,
@@ -122,6 +130,19 @@ fn main() -> opencv::Result<()> {
         highgui::imshow("Screen", &frame)?;
 
         let key = highgui::wait_key(80)?;
+        // space to toggle camera
+        if key == 32 {
+            camera_enabled = !camera_enabled;
+            continue;
+        }
+        // backspace or c to clear
+        if key == 8 || key == 99 {
+            let mut guard = overlay.lock().unwrap();
+            if let Some(ref mut overlay_mat) = *guard {
+                overlay_mat.set_to(&Scalar::all(0.0), &Mat::default())?;
+            }
+            continue;
+        }
         // exit on esc or q
         if key == 27 || key == 113 {
             break;
