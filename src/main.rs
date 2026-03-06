@@ -10,40 +10,18 @@ use std::time::{Duration, Instant};
 mod color_detect;
 use crate::color_detect::{ColorRange, detect_and_draw};
 
+mod mouse_callback;
+use crate::mouse_callback::create_mouse_callback;
+
 fn main() -> opencv::Result<()> {
-    let mut cam = videoio::VideoCapture::new(0, videoio::CAP_ANY)?;
+    let mut camera = videoio::VideoCapture::new(0, videoio::CAP_ANY)?;
 
     let overlay = Arc::new(Mutex::new(None::<Mat>));
     highgui::named_window("Screen", highgui::WINDOW_AUTOSIZE)?;
 
     // mouse callback
     let overlay_cb = overlay.clone();
-    let mouse_cb: highgui::MouseCallback = Some(Box::new(move |event, x, y, flags| {
-        let mut guard = overlay_cb.lock().unwrap();
-
-        // match mouse buttons
-        if let Some(ref mut img) = *guard {
-            // left button to draw
-            if event == highgui::EVENT_LBUTTONDOWN
-                || (event == highgui::EVENT_MOUSEMOVE && (flags & highgui::EVENT_FLAG_LBUTTON) != 0)
-            {
-                imgproc::circle(
-                    img,
-                    Point::new(x, y),
-                    1,
-                    Scalar::new(0.0, 255.0, 0.0, 0.0), // always green
-                    -1,
-                    imgproc::LINE_8,
-                    0,
-                )
-                .ok();
-            }
-            // right or middle button to clear
-            else if event == highgui::EVENT_RBUTTONDOWN || event == highgui::EVENT_MBUTTONDOWN {
-                img.set_to(&Scalar::all(0.0), &Mat::default()).ok();
-            }
-        }
-    }));
+    let mouse_cb = create_mouse_callback(overlay_cb);
 
     // SETUP
     let mut frame_count = 0u32;
@@ -56,7 +34,7 @@ fn main() -> opencv::Result<()> {
     // draw loop
     loop {
         let mut frame = Mat::default();
-        cam.read(&mut frame)?;
+        camera.read(&mut frame)?;
         if frame.empty() {
             continue;
         }
@@ -80,7 +58,7 @@ fn main() -> opencv::Result<()> {
                 let detect_green = ColorRange {
                     h_low: 40,
                     s_low: 60,
-                    v_low: 90,
+                    v_low: 120,
                     h_high: 75,
                     s_high: 255,
                     v_high: 255,
