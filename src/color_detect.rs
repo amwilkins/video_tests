@@ -13,13 +13,32 @@ pub struct ColorRange {
     pub v_high: i32,
 }
 
+// Common color ranges
+pub const GREEN_RANGE: ColorRange = ColorRange {
+    h_low: 40,
+    s_low: 60,
+    v_low: 120,
+    h_high: 75,
+    s_high: 255,
+    v_high: 255,
+};
+
+pub const BLUE_RANGE: ColorRange = ColorRange {
+    h_low: 90,
+    s_low: 200,
+    v_low: 200,
+    h_high: 115,
+    s_high: 255,
+    v_high: 240,
+};
+
 pub fn detect_and_draw(
     overlay: &mut Mat,
     frame: &Mat,
     range: &ColorRange,
     color: Scalar,
 ) -> Result<()> {
-    // hsv color
+    // convert to hsv color
     let mut hsv = Mat::default();
     imgproc::cvt_color(frame, &mut hsv, imgproc::COLOR_BGR2HSV, 0)?;
 
@@ -47,7 +66,6 @@ pub fn detect_and_draw(
             Point::new(p.x, p.y),
             2,
             color,
-            //Scalar::new(0.0, 255.0, 0.0, 0.0), // green for now
             -1,
             imgproc::LINE_8,
             0,

@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 mod camera;
 
 mod color_detect;
-use crate::color_detect::{ColorRange, detect_and_draw};
+use crate::color_detect::{BLUE_RANGE, GREEN_RANGE, detect_and_draw};
 
 mod mouse_callback;
 use crate::mouse_callback::create_mouse_callback;
@@ -31,6 +31,7 @@ fn main() -> opencv::Result<()> {
     let mut last_time = Instant::now();
     let mut current_fps = 0.0;
     let mut camera_enabled = false;
+    let mut show_color = true;
 
     highgui::set_mouse_callback("Screen", mouse_cb)?;
 
@@ -47,50 +48,28 @@ fn main() -> opencv::Result<()> {
             continue;
         }
 
+        let frame_clone = frame.clone();
         {
-            //overlay to match frame size
             let mut guard = overlay.lock().unwrap();
             if guard.is_none() {
                 *guard = Some(Mat::zeros(frame.rows(), frame.cols(), CV_8UC3)?.to_mat()?);
             }
-        }
-
-        let frame_clone = frame.clone();
-
-        {
-            let mut guard = overlay.lock().unwrap();
 
             // draw based on mode
             if let Some(ref mut overlay_mat) = *guard {
                 // draw green
-                let detect_green = ColorRange {
-                    h_low: 40,
-                    s_low: 60,
-                    v_low: 120,
-                    h_high: 75,
-                    s_high: 255,
-                    v_high: 255,
-                };
                 detect_and_draw(
                     overlay_mat,
                     &frame,
-                    &detect_green,
+                    &GREEN_RANGE,
                     Scalar::new(0.0, 255.0, 0.0, 0.0),
                 )?;
 
                 // draw blue
-                let detect_blue = ColorRange {
-                    h_low: 90,
-                    s_low: 200,
-                    v_low: 200,
-                    h_high: 115,
-                    s_high: 255,
-                    v_high: 240,
-                };
                 detect_and_draw(
                     overlay_mat,
                     &frame,
-                    &detect_blue,
+                    &BLUE_RANGE,
                     Scalar::new(255.0, 20.0, 20.0, 0.0),
                 )?;
 
@@ -141,6 +120,10 @@ fn main() -> opencv::Result<()> {
         // space to toggle camera
         if key == 32 {
             camera_enabled = !camera_enabled;
+            continue;
+        }
+        if key == 118 {
+            show_color = !show_color;
             continue;
         }
         // backspace or c to clear
