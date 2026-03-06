@@ -2,10 +2,12 @@ use opencv::{
     core::{CV_8UC3, Mat, Point, Scalar, add_weighted},
     highgui, imgproc,
     prelude::*,
-    videoio,
 };
+use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
+
+mod camera;
 
 mod color_detect;
 use crate::color_detect::{ColorRange, detect_and_draw};
@@ -14,7 +16,8 @@ mod mouse_callback;
 use crate::mouse_callback::create_mouse_callback;
 
 fn main() -> opencv::Result<()> {
-    let mut camera = videoio::VideoCapture::new(0, videoio::CAP_ANY)?;
+    let (tx, rx) = mpsc::channel();
+    let _cam_handle = camera::spawn_camera(tx);
 
     let overlay = Arc::new(Mutex::new(None::<Mat>));
     highgui::named_window("Screen", highgui::WINDOW_AUTOSIZE)?;
@@ -34,7 +37,12 @@ fn main() -> opencv::Result<()> {
     // draw loop
     loop {
         let mut frame = Mat::default();
-        camera.read(&mut frame)?;
+
+        // receive camera frame
+        if let Some(cam_rec) = rx.try_recv().ok() {
+            frame = cam_rec;
+        }
+
         if frame.empty() {
             continue;
         }
@@ -129,7 +137,7 @@ fn main() -> opencv::Result<()> {
         // show the combined image
         highgui::imshow("Screen", &frame)?;
 
-        let key = highgui::wait_key(80)?;
+        let key = highgui::wait_key(10)?;
         // space to toggle camera
         if key == 32 {
             camera_enabled = !camera_enabled;
