@@ -13,15 +13,15 @@ pub fn create_mouse_callback(
 
         // match mouse buttons
         if let Some(ref mut img) = *guard {
-            // left button to draw
+            // left button to erase
             if event == highgui::EVENT_LBUTTONDOWN
                 || (event == highgui::EVENT_MOUSEMOVE && (flags & highgui::EVENT_FLAG_LBUTTON) != 0)
             {
                 imgproc::circle(
                     img,
                     Point::new(x, y),
-                    1,
-                    Scalar::new(0.0, 255.0, 0.0, 0.0), // always green
+                    20,
+                    Scalar::all(0.0),
                     -1,
                     imgproc::LINE_8,
                     0,
