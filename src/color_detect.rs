@@ -25,9 +25,18 @@ pub const GREEN_RANGE: ColorRange = ColorRange {
 
 pub const BLUE_RANGE: ColorRange = ColorRange {
     h_low: 90,
+    s_low: 190,
+    v_low: 190,
+    h_high: 115,
+    s_high: 255,
+    v_high: 240,
+};
+
+pub const RED_RANGE: ColorRange = ColorRange {
+    h_low: 150,
     s_low: 200,
     v_low: 200,
-    h_high: 115,
+    h_high: 180,
     s_high: 255,
     v_high: 240,
 };

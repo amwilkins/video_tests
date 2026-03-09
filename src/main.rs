@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 mod camera;
 
 mod color_detect;
-use crate::color_detect::{BLUE_RANGE, GREEN_RANGE, detect_and_draw};
+use crate::color_detect::*;
 
 mod mouse_callback;
 use crate::mouse_callback::create_mouse_callback;
@@ -19,27 +19,31 @@ fn main() -> opencv::Result<()> {
     let (tx, rx) = mpsc::channel();
     let _cam_handle = camera::spawn_camera(tx);
     let color_mutex = Arc::new(Mutex::new(None::<Mat>));
-
-    // mouse callback
-    let overlay_cb = color_mutex.clone();
-    let mouse_cb = create_mouse_callback(overlay_cb);
-    highgui::set_mouse_callback("Screen", mouse_cb)?;
-
-    // SETUP
     highgui::named_window("Screen", highgui::WINDOW_AUTOSIZE)?;
+
+    // ~~~ SETUP ~~~ //
     let mut frame_count = 0u32;
     let mut last_time = Instant::now();
     let mut current_fps = 0.0;
     let mut camera_enabled = false;
     let mut show_color = true;
 
-    //creating frames
-    let mut camera_frame;
-    let mut overlay_frame;
-    let mut output_frame;
-    let mut color_frame = Mat::default();
+    // mouse callback
+    let mouse_cb = create_mouse_callback(color_mutex.clone());
+    highgui::set_mouse_callback("Screen", mouse_cb)?;
 
-    // draw loop
+    // select detection colors
+    //let detect_colors = vec![&GREEN_RANGE, &BLUE_RANGE, &RED_RANGE];
+
+    //creating frames
+    let mut color_frame = Mat::default();
+    let mut camera_frame = rx.recv().unwrap(); // blocking wait for first frame
+    let mut output_frame =
+        Mat::zeros(camera_frame.rows(), camera_frame.cols(), CV_8UC3)?.to_mat()?;
+
+    let mut overlay_frame =
+        Mat::zeros(camera_frame.rows(), camera_frame.cols(), CV_8UC3)?.to_mat()?;
+    // ~~~ draw loop ~~~ //
     loop {
         // receive camera frame
         if let Some(cam_rec) = rx.try_recv().ok() {
@@ -47,10 +51,7 @@ fn main() -> opencv::Result<()> {
         } else {
             continue;
         }
-        // init output frame
-        output_frame = Mat::zeros(camera_frame.rows(), camera_frame.cols(), CV_8UC3)?.to_mat()?;
 
-        //let frame_clone = camera_frame.clone();
         {
             let mut guard = color_mutex.lock().unwrap();
             // init frame to cam size
@@ -67,6 +68,13 @@ fn main() -> opencv::Result<()> {
                     &camera_frame,
                     &GREEN_RANGE,
                     Scalar::new(0.0, 255.0, 0.0, 0.0),
+                )?;
+
+                detect_and_draw(
+                    color_mutex,
+                    &camera_frame,
+                    &RED_RANGE,
+                    Scalar::new(10.0, 10.0, 255.0, 0.0),
                 )?;
 
                 // draw blue
@@ -97,23 +105,33 @@ fn main() -> opencv::Result<()> {
         );
 
         // match overlay frame to output
-        overlay_frame = Mat::zeros(camera_frame.rows(), camera_frame.cols(), CV_8UC3)?.to_mat()?;
+        overlay_frame.set_to(&Scalar::all(0.0), &Mat::default())?;
         imgproc::put_text(
             &mut overlay_frame,
             &text,
-            Point::new(16, 10),
+            Point::new(16, 16),
             imgproc::FONT_HERSHEY_SIMPLEX,
             0.5,
-            Scalar::new(255.0, 255.0, 255.0, 0.0),
+            Scalar::all(255.0),
             1,
             imgproc::LINE_AA,
             false,
         )
         .ok();
 
+        // add overlay frame to output
+        add_weighted(
+            &color_frame,
+            1.0,
+            &overlay_frame,
+            1.0,
+            0.0,
+            &mut output_frame,
+            -1,
+        )?;
+
         // combining frames to output_frame
         if camera_enabled {
-            // add video
             add_weighted(
                 &output_frame.clone(),
                 1.0,
@@ -125,32 +143,10 @@ fn main() -> opencv::Result<()> {
             )?;
         }
 
-        // add color frame to output
-        add_weighted(
-            &output_frame.clone(),
-            1.0,
-            &color_frame,
-            1.0,
-            0.0,
-            &mut output_frame,
-            -1,
-        )?;
-
-        // add overlay frame to output
-        add_weighted(
-            &output_frame.clone(),
-            1.0,
-            &overlay_frame,
-            1.0,
-            0.0,
-            &mut output_frame,
-            -1,
-        )?;
-
         // show the combined image
         highgui::imshow("Screen", &output_frame)?;
 
-        let key = highgui::wait_key(10)?;
+        let key = highgui::wait_key(1)?;
         // space to toggle camera
         if key == 32 {
             camera_enabled = !camera_enabled;
