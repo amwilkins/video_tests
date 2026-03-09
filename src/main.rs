@@ -33,7 +33,7 @@ fn main() -> opencv::Result<()> {
     highgui::set_mouse_callback("Screen", mouse_cb)?;
 
     // select detection colors
-    //let detect_colors = vec![&GREEN_RANGE, &BLUE_RANGE, &RED_RANGE];
+    let detect_colors = vec![&GREEN_RANGE, &BLUE_RANGE, &RED_RANGE];
 
     //creating frames
     let mut color_frame = Mat::default();
@@ -62,28 +62,7 @@ fn main() -> opencv::Result<()> {
 
             // draw based on mode
             if let Some(ref mut color_mutex) = *guard {
-                // draw green
-                detect_and_draw(
-                    color_mutex,
-                    &camera_frame,
-                    &GREEN_RANGE,
-                    Scalar::new(0.0, 255.0, 0.0, 0.0),
-                )?;
-
-                detect_and_draw(
-                    color_mutex,
-                    &camera_frame,
-                    &RED_RANGE,
-                    Scalar::new(10.0, 10.0, 255.0, 0.0),
-                )?;
-
-                // draw blue
-                detect_and_draw(
-                    color_mutex,
-                    &camera_frame,
-                    &BLUE_RANGE,
-                    Scalar::new(255.0, 20.0, 20.0, 0.0),
-                )?;
+                detect_and_draw(color_mutex, &camera_frame, &detect_colors)?;
                 color_mutex.copy_to(&mut color_frame)?;
             }
         }
