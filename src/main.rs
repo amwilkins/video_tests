@@ -25,15 +25,18 @@ fn main() -> opencv::Result<()> {
     let mut frame_count = 0u32;
     let mut last_time = Instant::now();
     let mut current_fps = 0.0;
+
+    // flags
     let mut camera_enabled = false;
-    let mut show_color = true;
+    //let mut show_color = true;
+    let mut reset_color_mode = false;
 
     // mouse callback
     let mouse_cb = create_mouse_callback(color_mutex.clone());
     highgui::set_mouse_callback("Screen", mouse_cb)?;
 
     // select detection colors
-    let detect_colors = vec![&GREEN_RANGE, &BLUE_RANGE, &RED_RANGE];
+    let detect_colors = vec![&GREEN_RANGE, &BLUE_RANGE, &RED1_RANGE, &RED2_RANGE];
 
     //creating frames
     let mut color_frame = Mat::default();
@@ -60,8 +63,13 @@ fn main() -> opencv::Result<()> {
                     Some(Mat::zeros(camera_frame.rows(), camera_frame.cols(), CV_8UC3)?.to_mat()?);
             }
 
-            // draw based on mode
+            // detect and draw
             if let Some(ref mut color_mutex) = *guard {
+                // draw based on mode
+                if reset_color_mode {
+                    color_mutex.set_to(&Scalar::all(0.0), &Mat::default())?;
+                }
+
                 detect_and_draw(color_mutex, &camera_frame, &detect_colors)?;
                 color_mutex.copy_to(&mut color_frame)?;
             }
@@ -132,7 +140,9 @@ fn main() -> opencv::Result<()> {
             continue;
         }
         if key == 118 {
-            show_color = !show_color;
+            //show_color = !show_color;
+            println!("Reset color mode");
+            reset_color_mode = !reset_color_mode;
             continue;
         }
         // backspace or c to clear

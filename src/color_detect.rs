@@ -31,17 +31,27 @@ pub const BLUE_RANGE: ColorRange = ColorRange {
     v_low: 190,
     h_high: 115,
     s_high: 255,
-    v_high: 240,
+    v_high: 255,
     color: Scalar::new(255.0, 10.0, 10.0, 0.0),
 };
 
-pub const RED_RANGE: ColorRange = ColorRange {
-    h_low: 150,
-    s_low: 180,
-    v_low: 180,
+pub const RED1_RANGE: ColorRange = ColorRange {
+    h_low: -1,
+    s_low: 150,
+    v_low: 150,
+    h_high: 30,
+    s_high: 255,
+    v_high: 255,
+    color: Scalar::new(10.0, 10.0, 255.0, 0.0),
+};
+
+pub const RED2_RANGE: ColorRange = ColorRange {
+    h_low: 140,
+    s_low: 150,
+    v_low: 150,
     h_high: 180,
     s_high: 255,
-    v_high: 240,
+    v_high: 255,
     color: Scalar::new(10.0, 10.0, 255.0, 0.0),
 };
 
