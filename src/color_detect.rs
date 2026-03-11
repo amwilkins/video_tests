@@ -1,6 +1,6 @@
 use opencv::{
     Result,
-    core::{Mat, Point, Scalar, Vector, find_non_zero, in_range},
+    core::{BORDER_CONSTANT, Mat, Point, Scalar, Size, Vector, find_non_zero, in_range},
     imgproc,
 };
 
@@ -79,6 +79,33 @@ pub fn detect_and_draw(
         );
         let mut mask = Mat::default();
         in_range(&hsv, &lower, &upper, &mut mask)?;
+
+        // remove noise
+        let kernel = imgproc::get_structuring_element(
+            imgproc::MORPH_RECT,
+            Size::new(3, 3),
+            Point::new(-1, -1),
+        )?;
+        imgproc::morphology_ex(
+            &mask.clone(),
+            &mut mask,
+            imgproc::MORPH_OPEN,
+            &kernel,
+            Point::new(-1, -1),
+            1,
+            BORDER_CONSTANT,
+            opencv::core::Scalar::default(),
+        )?;
+        imgproc::morphology_ex(
+            &mask.clone(),
+            &mut mask,
+            imgproc::MORPH_CLOSE,
+            &kernel,
+            Point::new(-1, -1),
+            1,
+            BORDER_CONSTANT,
+            opencv::core::Scalar::default(),
+        )?;
 
         // find points that are lit up and draw to screen
         let mut points: Vector<Point> = Vector::new();
