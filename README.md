@@ -19,12 +19,13 @@ Green color will be detected and drawn to screen as well.
 
 ## Commands
 
-Left-click - draw  
+Left-click - erase
 Right-click - clear  
 Space - toggle camera  
 q - exit  
 Escape - exit  
 Backspace - reset drawing  
 c - reset drawing  
+v - toggle draw mode
 
 
