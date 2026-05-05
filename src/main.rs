@@ -30,9 +30,9 @@ pub struct State {
     camera_enabled: bool,
     reset_color_mode: bool,
     color_overlay: ColorOverlay,
+    output_frame: Mat,
     camera_rows: i32,
     camera_cols: i32,
-    camera_rx: mpsc::Receiver<Mat>,
 }
 
 impl State {
@@ -41,9 +41,9 @@ impl State {
             camera_enabled: false,
             reset_color_mode: false,
             color_overlay: ColorOverlay::new(),
+            output_frame: Mat::default(),
             camera_rows: 0,
             camera_cols: 0,
-            camera_rx: mpsc::channel().1,
         }
     }
 }
@@ -68,23 +68,31 @@ fn main() -> opencv::Result<()> {
     let detect_colors = vec![&GREEN_RANGE, &BLUE_RANGE, &RED1_RANGE, &RED2_RANGE];
 
     //creating frames
-    //let mut color_frame = Mat::default();
     let mut camera_frame = rx.recv().unwrap(); // blocking wait for first frame
     state.camera_rows = camera_frame.rows();
     state.camera_cols = camera_frame.cols();
 
     let mut output_frame = Mat::zeros(state.camera_rows, state.camera_cols, CV_8UC3)?.to_mat()?;
     let mut overlay_frame = Mat::zeros(state.camera_rows, state.camera_cols, CV_8UC3)?.to_mat()?;
-    let mut color_frame = Mat::zeros(state.camera_rows, state.camera_cols, CV_8UC3)?.to_mat()?;
+    state.color_overlay.overlay =
+        Mat::zeros(state.camera_rows, state.camera_cols, CV_8UC3)?.to_mat()?;
 
     // ~~~ draw loop ~~~ //
     loop {
         // receive camera frame
         if let Some(cam_rec) = rx.try_recv().ok() {
             camera_frame = cam_rec;
-            output_frame = camera_frame.clone();
-        
-            detect_and_draw_color(&mut color_frame, &camera_frame, &detect_colors)?;
+
+            // color
+            if state.reset_color_mode {
+                clear_color_overlay(&mut state);
+            }
+            detect_and_draw_color(
+                &mut state.color_overlay.overlay,
+                &camera_frame,
+                &detect_colors,
+            )?;
+
             // fps
             frame_count += 1;
             if last_time.elapsed() >= Duration::from_secs(1) {
@@ -94,7 +102,7 @@ fn main() -> opencv::Result<()> {
             }
         }
 
-        overlay_frame = create_overlay(&state);
+        overlay_frame = create_overlay(&state, current_fps);
 
         // text to screen
         let text = format!(
@@ -119,7 +127,7 @@ fn main() -> opencv::Result<()> {
 
         // add color_overlay to output
         add_weighted(
-            &color_frame,
+            &state.color_overlay.overlay,
             1.0,
             &overlay_frame,
             1.0,
@@ -148,4 +156,3 @@ fn main() -> opencv::Result<()> {
         handle_keypress(key, &mut state);
     }
 }
-

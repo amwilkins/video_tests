@@ -57,16 +57,21 @@ pub const RED2_RANGE: ColorRange = ColorRange {
 };
 
 pub struct ColorOverlay {
-    pub overlay: Arc<Mutex<Option<Mat>>>,
+    pub overlay: Mat,
 }
 
 impl ColorOverlay {
     pub fn new() -> Self {
         Self {
-            overlay: Arc::new(Mutex::new(None::<Mat>)),
+            overlay: Mat::default(),
         }
     }
 }
+
+pub fn clear_color_overlay(state: &mut State) {
+    state.color_overlay.overlay = Mat::zeros(state.camera_rows, state.camera_cols, CV_8UC3).unwrap().to_mat().unwrap();
+}
+
 
 pub fn detect_and_draw_color(
     overlay: &mut Mat,
@@ -124,6 +129,7 @@ pub fn detect_and_draw_color(
         let mut points: Vector<Point> = Vector::new();
         find_non_zero(&mask, &mut points)?;
         for p in points.iter() {
+            //println!("{}",p.x);
             imgproc::circle(
                 overlay,
                 Point::new(p.x, p.y),

@@ -12,8 +12,11 @@ use std::time::Duration;
 pub fn spawn_camera(tx: Sender<opencv::core::Mat>) -> std::thread::JoinHandle<()> {
     thread::spawn(move || {
         let mut cam = VideoCapture::new(0, CAP_ANY).expect("Camera not found");
+        cam.set(CAP_PROP_FPS, 30.0);
+        println!("{}", cam.get(CAP_PROP_FPS).unwrap());
         // limit to camera fps property
         let target_fps = cam.get(CAP_PROP_FPS).unwrap_or(30.0);
+        println!("{}", target_fps);
         let frame_period = Duration::from_secs_f64(1.0 / target_fps.max(30.0));
         //println!("Capture fps: {}", CAP_PROP_FPS);
 
