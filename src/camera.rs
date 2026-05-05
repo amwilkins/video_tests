@@ -1,3 +1,5 @@
+use crate::prelude::*;
+
 use opencv::{
     prelude::*,
     videoio::{CAP_ANY, CAP_PROP_FPS, VideoCapture},
@@ -13,6 +15,7 @@ pub fn spawn_camera(tx: Sender<opencv::core::Mat>) -> std::thread::JoinHandle<()
         // limit to camera fps property
         let target_fps = cam.get(CAP_PROP_FPS).unwrap_or(30.0);
         let frame_period = Duration::from_secs_f64(1.0 / target_fps.max(30.0));
+        //println!("Capture fps: {}", CAP_PROP_FPS);
 
         // send frame loop
         loop {
@@ -25,3 +28,5 @@ pub fn spawn_camera(tx: Sender<opencv::core::Mat>) -> std::thread::JoinHandle<()
         }
     })
 }
+
+

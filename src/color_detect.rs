@@ -68,14 +68,14 @@ impl ColorOverlay {
     }
 }
 
-pub fn detect_and_draw(
+pub fn detect_and_draw_color(
     overlay: &mut Mat,
-    frame: &Mat,
+    camera_frame: &Mat,
     detect_colors: &Vec<&ColorRange>,
 ) -> Result<()> {
     // convert to hsv color
     let mut hsv = Mat::default();
-    imgproc::cvt_color(frame, &mut hsv, imgproc::COLOR_BGR2HSV, 0)?;
+    imgproc::cvt_color(camera_frame, &mut hsv, imgproc::COLOR_BGR2HSV, 0)?;
 
     for range in detect_colors {
         let lower = Scalar::new(
@@ -137,3 +137,4 @@ pub fn detect_and_draw(
     }
     Ok(())
 }
+

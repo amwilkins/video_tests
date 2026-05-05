@@ -1,6 +1,7 @@
 use opencv::{
-    core::{add_weighted, Mat, Point, Scalar, CV_8UC3},
-    highgui, imgproc,
+    //core::{add_weighted, Mat, Point, Scalar, CV_8UC3},
+    highgui,
+    imgproc,
 };
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
@@ -8,14 +9,17 @@ use std::time::{Duration, Instant};
 mod camera;
 mod color_detect;
 mod key_commands;
+mod overlay;
 //mod mouse_callback;
 
 mod prelude {
-    pub use crate::*;
     pub use crate::camera::*;
     pub use crate::color_detect::*;
     pub use crate::key_commands::*;
+    pub use crate::overlay::*;
+    pub use crate::*;
     //pub use crate::mouse_callback::create_mouse_callback;
+    pub use opencv::core::*;
     pub use opencv::prelude::*;
     pub use std::sync::*;
 }
@@ -25,7 +29,10 @@ use prelude::*;
 pub struct State {
     camera_enabled: bool,
     reset_color_mode: bool,
-    color_overlay: ColorOverlay
+    color_overlay: ColorOverlay,
+    camera_rows: i32,
+    camera_cols: i32,
+    camera_rx: mpsc::Receiver<Mat>,
 }
 
 impl State {
@@ -34,6 +41,9 @@ impl State {
             camera_enabled: false,
             reset_color_mode: false,
             color_overlay: ColorOverlay::new(),
+            camera_rows: 0,
+            camera_cols: 0,
+            camera_rx: mpsc::channel().1,
         }
     }
 }
@@ -50,7 +60,6 @@ fn main() -> opencv::Result<()> {
     let mut last_time = Instant::now();
     let mut current_fps = 0.0;
 
-
     // // mouse callback
     // let mouse_cb = create_mouse_callback(color_mutex.clone());
     // highgui::set_mouse_callback("Screen", mouse_cb)?;
@@ -59,56 +68,38 @@ fn main() -> opencv::Result<()> {
     let detect_colors = vec![&GREEN_RANGE, &BLUE_RANGE, &RED1_RANGE, &RED2_RANGE];
 
     //creating frames
-    let mut color_frame = Mat::default();
+    //let mut color_frame = Mat::default();
     let mut camera_frame = rx.recv().unwrap(); // blocking wait for first frame
-    let mut output_frame =
-        Mat::zeros(camera_frame.rows(), camera_frame.cols(), CV_8UC3)?.to_mat()?;
+    state.camera_rows = camera_frame.rows();
+    state.camera_cols = camera_frame.cols();
 
-    let mut overlay_frame =
-        Mat::zeros(camera_frame.rows(), camera_frame.cols(), CV_8UC3)?.to_mat()?;
+    let mut output_frame = Mat::zeros(state.camera_rows, state.camera_cols, CV_8UC3)?.to_mat()?;
+    let mut overlay_frame = Mat::zeros(state.camera_rows, state.camera_cols, CV_8UC3)?.to_mat()?;
+    let mut color_frame = Mat::zeros(state.camera_rows, state.camera_cols, CV_8UC3)?.to_mat()?;
+
     // ~~~ draw loop ~~~ //
     loop {
         // receive camera frame
         if let Some(cam_rec) = rx.try_recv().ok() {
             camera_frame = cam_rec;
-        } else {
-            continue;
-        }
-
-        {
-            let mut guard = state.color_overlay.overlay.lock().unwrap();
-            // init frame to cam size
-            if guard.is_none() {
-                *guard =
-                    Some(Mat::zeros(camera_frame.rows(), camera_frame.cols(), CV_8UC3)?.to_mat()?);
-            }
-
-            // detect and draw
-            if let Some(ref mut color_mutex) = *guard {
-                // draw based on mode
-                if state.reset_color_mode {
-                    color_mutex.set_to(&Scalar::all(0.0), &Mat::default())?;
-                }
-
-                detect_and_draw(color_mutex, &camera_frame, &detect_colors)?;
-                color_mutex.copy_to(&mut color_frame)?;
+            output_frame = camera_frame.clone();
+        
+            detect_and_draw_color(&mut color_frame, &camera_frame, &detect_colors)?;
+            // fps
+            frame_count += 1;
+            if last_time.elapsed() >= Duration::from_secs(1) {
+                current_fps = frame_count as f64 / last_time.elapsed().as_secs_f64();
+                frame_count = 0;
+                last_time = Instant::now();
             }
         }
 
-        // fps
-        frame_count += 1;
-        if last_time.elapsed() >= Duration::from_secs(1) {
-            current_fps = frame_count as f64 / last_time.elapsed().as_secs_f64();
-            frame_count = 0;
-            last_time = Instant::now();
-        }
+        overlay_frame = create_overlay(&state);
 
         // text to screen
         let text = format!(
             "Resolution: {}x{}\nFPS: {:.1}",
-            camera_frame.cols(),
-            camera_frame.rows(),
-            current_fps,
+            state.camera_rows, state.camera_cols, current_fps,
         );
 
         // match overlay frame to output
@@ -126,7 +117,7 @@ fn main() -> opencv::Result<()> {
         )
         .ok();
 
-        // add overlay frame to output
+        // add color_overlay to output
         add_weighted(
             &color_frame,
             1.0,
@@ -155,6 +146,6 @@ fn main() -> opencv::Result<()> {
 
         let key = highgui::wait_key(1)?;
         handle_keypress(key, &mut state);
-
     }
 }
+
