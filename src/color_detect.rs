@@ -1,7 +1,8 @@
+use crate::prelude::*;
+
 use opencv::{
-    Result,
-    core::{BORDER_CONSTANT, Mat, Point, Scalar, Size, Vector, find_non_zero, in_range},
-    imgproc,
+    core::{find_non_zero, in_range, Mat, Point, Scalar, Size, Vector, BORDER_CONSTANT},
+    imgproc, Result,
 };
 
 pub struct ColorRange {
@@ -54,6 +55,18 @@ pub const RED2_RANGE: ColorRange = ColorRange {
     v_high: 255,
     color: Scalar::new(10.0, 10.0, 255.0, 0.0),
 };
+
+pub struct ColorOverlay {
+    pub overlay: Arc<Mutex<Option<Mat>>>,
+}
+
+impl ColorOverlay {
+    pub fn new() -> Self {
+        Self {
+            overlay: Arc::new(Mutex::new(None::<Mat>)),
+        }
+    }
+}
 
 pub fn detect_and_draw(
     overlay: &mut Mat,

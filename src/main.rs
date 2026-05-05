@@ -1,24 +1,48 @@
 use opencv::{
-    core::{CV_8UC3, Mat, Point, Scalar, add_weighted},
+    core::{add_weighted, Mat, Point, Scalar, CV_8UC3},
     highgui, imgproc,
-    prelude::*,
 };
 use std::sync::mpsc;
-use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 mod camera;
-
 mod color_detect;
-use crate::color_detect::*;
+mod key_commands;
+//mod mouse_callback;
 
-mod mouse_callback;
-use crate::mouse_callback::create_mouse_callback;
+mod prelude {
+    pub use crate::*;
+    pub use crate::camera::*;
+    pub use crate::color_detect::*;
+    pub use crate::key_commands::*;
+    //pub use crate::mouse_callback::create_mouse_callback;
+    pub use opencv::prelude::*;
+    pub use std::sync::*;
+}
+
+use prelude::*;
+
+pub struct State {
+    camera_enabled: bool,
+    reset_color_mode: bool,
+    color_overlay: ColorOverlay
+}
+
+impl State {
+    fn new() -> Self {
+        Self {
+            camera_enabled: false,
+            reset_color_mode: false,
+            color_overlay: ColorOverlay::new(),
+        }
+    }
+}
 
 fn main() -> opencv::Result<()> {
+    let mut state = State::new();
+
     let (tx, rx) = mpsc::channel();
-    let _cam_handle = camera::spawn_camera(tx);
-    let color_mutex = Arc::new(Mutex::new(None::<Mat>));
+    let _cam_handle = spawn_camera(tx);
     highgui::named_window("Screen", highgui::WINDOW_AUTOSIZE)?;
 
     // ~~~ SETUP ~~~ //
@@ -26,14 +50,10 @@ fn main() -> opencv::Result<()> {
     let mut last_time = Instant::now();
     let mut current_fps = 0.0;
 
-    // flags
-    let mut camera_enabled = false;
-    //let mut show_color = true;
-    let mut reset_color_mode = false;
 
-    // mouse callback
-    let mouse_cb = create_mouse_callback(color_mutex.clone());
-    highgui::set_mouse_callback("Screen", mouse_cb)?;
+    // // mouse callback
+    // let mouse_cb = create_mouse_callback(color_mutex.clone());
+    // highgui::set_mouse_callback("Screen", mouse_cb)?;
 
     // select detection colors
     let detect_colors = vec![&GREEN_RANGE, &BLUE_RANGE, &RED1_RANGE, &RED2_RANGE];
@@ -56,7 +76,7 @@ fn main() -> opencv::Result<()> {
         }
 
         {
-            let mut guard = color_mutex.lock().unwrap();
+            let mut guard = state.color_overlay.overlay.lock().unwrap();
             // init frame to cam size
             if guard.is_none() {
                 *guard =
@@ -66,7 +86,7 @@ fn main() -> opencv::Result<()> {
             // detect and draw
             if let Some(ref mut color_mutex) = *guard {
                 // draw based on mode
-                if reset_color_mode {
+                if state.reset_color_mode {
                     color_mutex.set_to(&Scalar::all(0.0), &Mat::default())?;
                 }
 
@@ -118,7 +138,7 @@ fn main() -> opencv::Result<()> {
         )?;
 
         // combining frames to output_frame
-        if camera_enabled {
+        if state.camera_enabled {
             add_weighted(
                 &output_frame.clone(),
                 1.0,
@@ -134,30 +154,7 @@ fn main() -> opencv::Result<()> {
         highgui::imshow("Screen", &output_frame)?;
 
         let key = highgui::wait_key(1)?;
-        // space to toggle camera
-        if key == 32 {
-            camera_enabled = !camera_enabled;
-            continue;
-        }
-        if key == 118 {
-            //show_color = !show_color;
-            println!("Reset color mode");
-            reset_color_mode = !reset_color_mode;
-            continue;
-        }
-        // backspace or c to clear
-        if key == 8 || key == 99 {
-            let mut color_guard = color_mutex.lock().unwrap();
-            if let Some(ref mut overlay_mat) = *color_guard {
-                overlay_mat.set_to(&Scalar::all(0.0), &Mat::default())?;
-            }
-            continue;
-        }
-        // exit on esc or q
-        if key == 27 || key == 113 {
-            break;
-        }
-    }
+        handle_keypress(key, &mut state);
 
-    Ok(())
+    }
 }
