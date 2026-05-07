@@ -2,24 +2,24 @@ use crate::prelude::*;
 
 enum KeyCode {
     Space,
-    c,
-    v,
+    C,
+    V,
     Backspace,
     Escape,
-    q,
-    r,
+    Q,
+    R,
     None,
 }
 
 fn get_keycode(key: i32) -> KeyCode {
     return match key {
         32 => KeyCode::Space,
-        118 => KeyCode::v,
-        99 => KeyCode::c,
+        118 => KeyCode::V,
+        99 => KeyCode::C,
         8 => KeyCode::Backspace,
         27 => KeyCode::Escape,
-        113 => KeyCode::q,
-        114 => KeyCode::r,
+        113 => KeyCode::Q,
+        114 => KeyCode::R,
         _ => KeyCode::None,
     };
 }
@@ -29,10 +29,10 @@ pub fn handle_keypress(key: i32, state: &mut State) {
 
     match keycode {
         KeyCode::Space => state.camera_enabled = !state.camera_enabled,
-        KeyCode::v => state.reset_color_mode = !state.reset_color_mode,
-        KeyCode::c => clear_color_overlay(state),
-        KeyCode::q => std::process::exit(0),
-        //KeyCode::r => state = State::new(state.camera_frame),
+        KeyCode::V => state.reset_color_mode = !state.reset_color_mode,
+        KeyCode::C => clear_color_overlay(state),
+        KeyCode::Q => std::process::exit(0),
+        //KeyCode::R => state = State::new(state.camera_frame),
         KeyCode::Escape => std::process::exit(0),
         _ => (),
     }

@@ -56,6 +56,8 @@ pub const RED2_RANGE: ColorRange = ColorRange {
     color: Scalar::new(10.0, 10.0, 255.0, 0.0),
 };
 
+
+#[derive(Debug)]
 pub struct ColorOverlay {
     pub overlay: Mat,
 }
@@ -130,14 +132,13 @@ pub fn detect_and_draw_color(
         let mut points: Vector<Point> = Vector::new();
         find_non_zero(&mask, &mut points)?;
         for p in points.iter() {
-            //println!("{}",p.x);
             imgproc::circle(
                 overlay,
                 Point::new(p.x, p.y),
                 1,
                 range.color,
                 -1,
-                imgproc::LINE_8,
+                imgproc::LINE_4,
                 0,
             )?;
         }

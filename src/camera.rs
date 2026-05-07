@@ -4,7 +4,7 @@ use opencv::{
 };
 use std::sync::mpsc::Sender;
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 // create camera thread
 pub fn spawn_camera(tx: Sender<opencv::core::Mat>) -> std::thread::JoinHandle<()> {
@@ -17,7 +17,6 @@ pub fn spawn_camera(tx: Sender<opencv::core::Mat>) -> std::thread::JoinHandle<()
         let target_fps = cam.get(CAP_PROP_FPS).unwrap_or(30.0);
         let frame_period = Duration::from_secs_f64(1.0 / target_fps.max(30.0));
 
-        let time = Instant::now();
         // send frame loop
         loop {
             let mut frame = opencv::core::Mat::default();

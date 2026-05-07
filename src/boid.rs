@@ -1,26 +1,35 @@
 use crate::prelude::*;
 
-struct Coord {
-    x: i32,
-    y: i32,
+#[derive(Debug)]
+pub struct Coord {
+    pub x: i32,
+    pub y: i32,
+}
+impl Coord {
+    pub fn add(&self, coord: &Coord) -> Coord{
+        let new_x = self.x + coord.x;
+        let new_y = self.y + coord.y;
+        Coord{x: new_x, y: new_y}
+    }
 }
 
+#[derive(Debug)]
 pub struct Boid {
-    position: Coord,
+    pub position: Coord,
     speed: f64,
     velocity_x: f64,
     velocity_y: f64,
 }
 
 impl Boid {
-    pub fn new(state: &mut State) -> Self {
+    pub fn new(camera_frame: &Mat, rng: &mut ThreadRng) -> Self {
         let position = Coord {
-            x: state.rng.random_range(0..=state.camera_frame.cols()),
-            y: state.rng.random_range(0..=state.camera_frame.rows()),
+            x: rng.random_range(0..=camera_frame.cols()),
+            y: rng.random_range(0..=camera_frame.rows()),
         };
         let speed = 0.05;
-        let velocity_x = state.rng.random_range(-1.0..=1.0);
-        let velocity_y = state.rng.random_range(-1.0..=1.0);
+        let velocity_x = rng.random_range(-1.0..=1.0);
+        let velocity_y = rng.random_range(-1.0..=1.0);
         Self {
             position,
             speed,
@@ -28,10 +37,13 @@ impl Boid {
             velocity_y,
         }
     }
-    pub fn update(&mut self, state: &mut State, dt: &Duration) {
+    pub fn update(&mut self, camera_frame: &Mat, rng: &mut ThreadRng, centroid: &Coord, dt: &Duration) {
+        let randomness = 10.0;
+        random_motion(self, rng.random_range(-randomness..=randomness));
         
-        attract_boid(self, Coord{x: state.camera_frame.cols()/2, y: state.camera_frame.rows()/2});
-        random_motion(self, &mut state.rng);
+        attract_boid(self, &Coord{x: camera_frame.cols()/2, y: camera_frame.rows()/2}, 0.8);
+
+        attract_boid(self, centroid, 1.2);
 
         self.position.x += ((self.velocity_x * self.speed) * dt.as_secs_f64()) as i32;
         self.position.y += ((self.velocity_y * self.speed) * dt.as_secs_f64()) as i32;
@@ -51,15 +63,14 @@ impl Boid {
     }
 }
 
-fn attract_boid(boid: &mut Boid, pos: Coord) {
-    boid.velocity_x += (pos.x - boid.position.x) as f64;
-    boid.velocity_y += (pos.y - boid.position.y) as f64;
+fn attract_boid(boid: &mut Boid, pos: &Coord, str: f64) {
+    boid.velocity_x += (pos.x - boid.position.x) as f64 * str;
+    boid.velocity_y += (pos.y - boid.position.y) as f64 * str;
 }
 
-fn random_motion(boid: &mut Boid, rng: &mut ThreadRng) {
-    let randomness = 10.0;
-    boid.velocity_x += rng.random_range(-randomness..=randomness);
-    boid.velocity_y += rng.random_range(-randomness..=randomness);
+fn random_motion(boid: &mut Boid, rng: f64) {
+    boid.velocity_x += rng;
+    boid.velocity_y += rng;
 }
 
 
