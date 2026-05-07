@@ -67,6 +67,8 @@ fn main() -> opencv::Result<()> {
     let (tx, rx) = mpsc::channel();
     let _cam_handle = spawn_camera(tx);
     highgui::named_window("Screen", highgui::WINDOW_KEEPRATIO)?;
+    highgui::resize_window("Screen", 1600, 900)?;
+    
     //highgui::named_window("Screen", highgui::WINDOW_AUTOSIZE)?;
 
     let camera_frame = rx.recv().unwrap(); // blocking wait for first frame

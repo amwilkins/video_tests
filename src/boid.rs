@@ -5,13 +5,6 @@ pub struct Coord {
     pub x: i32,
     pub y: i32,
 }
-impl Coord {
-    pub fn add(&self, coord: &Coord) -> Coord{
-        let new_x = self.x + coord.x;
-        let new_y = self.y + coord.y;
-        Coord{x: new_x, y: new_y}
-    }
-}
 
 #[derive(Debug)]
 pub struct Boid {
@@ -38,12 +31,14 @@ impl Boid {
         }
     }
     pub fn update(&mut self, camera_frame: &Mat, rng: &mut ThreadRng, centroid: &Coord, dt: &Duration) {
-        let randomness = 10.0;
+        let randomness = 100.0;
         random_motion(self, rng.random_range(-randomness..=randomness));
         
-        attract_boid(self, &Coord{x: camera_frame.cols()/2, y: camera_frame.rows()/2}, 0.8);
+        // center of screen
+        attract_boid(self, &Coord{x: camera_frame.cols()/2, y: camera_frame.rows()/2}, 0.02);
 
-        attract_boid(self, centroid, 1.2);
+        // centroid
+        attract_boid(self, centroid, 0.8);
 
         self.position.x += ((self.velocity_x * self.speed) * dt.as_secs_f64()) as i32;
         self.position.y += ((self.velocity_y * self.speed) * dt.as_secs_f64()) as i32;
