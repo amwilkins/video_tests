@@ -69,7 +69,7 @@ impl ColorOverlay {
 }
 
 pub fn clear_color_overlay(state: &mut State) {
-    state.color_overlay.overlay = Mat::zeros(state.camera_rows, state.camera_cols, CV_8UC3).unwrap().to_mat().unwrap();
+    state.color_overlay.overlay = Mat::zeros(state.camera_frame.rows(), state.camera_frame.cols(), CV_8UC3).unwrap().to_mat().unwrap();
 }
 
 
@@ -78,6 +78,7 @@ pub fn detect_and_draw_color(
     camera_frame: &Mat,
     detect_colors: &Vec<&ColorRange>,
 ) -> Result<()> {
+
     // convert to hsv color
     let mut hsv = Mat::default();
     imgproc::cvt_color(camera_frame, &mut hsv, imgproc::COLOR_BGR2HSV, 0)?;
@@ -133,7 +134,7 @@ pub fn detect_and_draw_color(
             imgproc::circle(
                 overlay,
                 Point::new(p.x, p.y),
-                2,
+                1,
                 range.color,
                 -1,
                 imgproc::LINE_8,

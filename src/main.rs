@@ -3,9 +3,11 @@ use opencv::{
     highgui,
     imgproc,
 };
+use rand::{Rng, RngExt};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
+mod boid;
 mod camera;
 mod color_detect;
 mod key_commands;
@@ -13,6 +15,7 @@ mod overlay;
 //mod mouse_callback;
 
 mod prelude {
+    pub use crate::boid::*;
     pub use crate::camera::*;
     pub use crate::color_detect::*;
     pub use crate::key_commands::*;
@@ -21,7 +24,7 @@ mod prelude {
     //pub use crate::mouse_callback::create_mouse_callback;
     pub use opencv::core::*;
     pub use opencv::prelude::*;
-    pub use std::sync::*;
+    pub use rand::rngs::ThreadRng;
 }
 
 use prelude::*;
@@ -31,31 +34,37 @@ pub struct State {
     reset_color_mode: bool,
     color_overlay: ColorOverlay,
     output_frame: Mat,
-    camera_rows: i32,
-    camera_cols: i32,
+    camera_frame: Mat,
+    rng: ThreadRng,
+    boids: Vec<Boid>,
 }
 
 impl State {
-    fn new() -> Self {
+    fn new(camera_frame: Mat) -> Self {
         Self {
             camera_enabled: false,
             reset_color_mode: false,
             color_overlay: ColorOverlay::new(),
             output_frame: Mat::default(),
-            camera_rows: 0,
-            camera_cols: 0,
+            camera_frame,
+            rng: rand::rng(),
+            boids: vec![], 
         }
     }
 }
 
 fn main() -> opencv::Result<()> {
-    let mut state = State::new();
-
     let (tx, rx) = mpsc::channel();
     let _cam_handle = spawn_camera(tx);
     highgui::named_window("Screen", highgui::WINDOW_AUTOSIZE)?;
 
-    // ~~~ SETUP ~~~ //
+    let mut camera_frame = rx.recv().unwrap(); // blocking wait for first frame
+    let mut state = State::new(camera_frame);
+
+    // ~~~ Boids ~~~ //
+    let mut boid = Boid::new(&mut state);
+
+    // ~~~ FPS SETUP ~~~ //
     let mut frame_count = 0u32;
     let mut last_time = Instant::now();
     let mut current_fps = 0.0;
@@ -67,31 +76,46 @@ fn main() -> opencv::Result<()> {
     // select detection colors
     let detect_colors = vec![&GREEN_RANGE, &BLUE_RANGE, &RED1_RANGE, &RED2_RANGE];
 
-    //creating frames
-    let mut camera_frame = rx.recv().unwrap(); // blocking wait for first frame
-    state.camera_rows = camera_frame.rows();
-    state.camera_cols = camera_frame.cols();
-
-    let mut output_frame = Mat::zeros(state.camera_rows, state.camera_cols, CV_8UC3)?.to_mat()?;
-    let mut overlay_frame = Mat::zeros(state.camera_rows, state.camera_cols, CV_8UC3)?.to_mat()?;
-    state.color_overlay.overlay =
-        Mat::zeros(state.camera_rows, state.camera_cols, CV_8UC3)?.to_mat()?;
+    // init frames
+    let mut output_frame = Mat::zeros(
+        state.camera_frame.rows(),
+        state.camera_frame.cols(),
+        CV_8UC3,
+    )?
+    .to_mat()?;
+    let mut overlay_frame = Mat::zeros(
+        state.camera_frame.rows(),
+        state.camera_frame.cols(),
+        CV_8UC3,
+    )?
+    .to_mat()?;
+    state.color_overlay.overlay = Mat::zeros(
+        state.camera_frame.rows(),
+        state.camera_frame.cols(),
+        CV_8UC3,
+    )?
+    .to_mat()?;
 
     // ~~~ draw loop ~~~ //
-    loop {
-        // receive camera frame
-        if let Some(cam_rec) = rx.try_recv().ok() {
-            camera_frame = cam_rec;
 
-            // color
-            if state.reset_color_mode {
-                clear_color_overlay(&mut state);
-            }
-            detect_and_draw_color(
-                &mut state.color_overlay.overlay,
-                &camera_frame,
-                &detect_colors,
-            )?;
+    let dt = Duration::new(1, 0) / 60;
+    let mut t = Duration::new(0, 0);
+    let mut current_time = Instant::now();
+    let mut accumulator = Duration::new(0, 0);
+
+    loop {
+        // time //
+        let newtime = Instant::now();
+        let frametime = newtime - current_time;
+        current_time = newtime;
+
+        accumulator += frametime;
+
+        // Camera frame, non-blocking //
+        if let Some(cam_rec) = rx.try_recv().ok() {
+            //camera_frame = cam_rec.clone();
+            // mirror x axis
+            flip(&cam_rec.clone(), &mut state.camera_frame, 1)?;
 
             // fps
             frame_count += 1;
@@ -100,14 +124,26 @@ fn main() -> opencv::Result<()> {
                 frame_count = 0;
                 last_time = Instant::now();
             }
+            // Detect and draw color
+            if state.reset_color_mode {
+                clear_color_overlay(&mut state);
+            }
+            detect_and_draw_color(
+                &mut state.color_overlay.overlay,
+                &state.camera_frame.clone(),
+                &detect_colors,
+            )?;
         }
 
-        overlay_frame = create_overlay(&state, current_fps);
+        // TODO: create overlay frame
+        // overlay_frame = create_overlay(&state, current_fps);
 
         // text to screen
         let text = format!(
             "Resolution: {}x{}\nFPS: {:.1}",
-            state.camera_rows, state.camera_cols, current_fps,
+            state.camera_frame.cols(),
+            state.camera_frame.rows(),
+            current_fps,
         );
 
         // match overlay frame to output
@@ -125,6 +161,17 @@ fn main() -> opencv::Result<()> {
         )
         .ok();
 
+        //overlay_frame.set_to(&Scalar::all(0.0), &Mat::default())?;
+        // add_weighted(
+        //     &boid_overlay,
+        //     1.0,
+        //     &overlay_frame,
+        //     1.0,
+        //     0.0,
+        //     &mut output_frame,
+        //     -1,
+        // )?;
+
         // add color_overlay to output
         add_weighted(
             &state.color_overlay.overlay,
@@ -136,18 +183,27 @@ fn main() -> opencv::Result<()> {
             -1,
         )?;
 
+
         // combining frames to output_frame
         if state.camera_enabled {
             add_weighted(
                 &output_frame.clone(),
                 1.0,
-                &camera_frame,
+                &state.camera_frame.clone(),
                 1.0,
                 0.0,
                 &mut output_frame,
                 -1,
             )?;
         }
+
+        // render boids
+        while accumulator >= dt {
+            boid.update(&mut state, &dt);
+            accumulator -= dt;
+            t += dt;
+        }
+        boid.render(&mut output_frame);
 
         // show the combined image
         highgui::imshow("Screen", &output_frame)?;
