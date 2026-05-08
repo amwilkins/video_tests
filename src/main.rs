@@ -29,7 +29,7 @@ mod prelude {
 
 use prelude::*;
 
-const NUM_BOIDS: i8 = 5;
+const NUM_BOIDS: i32 = 5;
 
 #[derive(Debug)]
 pub struct State {
@@ -68,7 +68,7 @@ fn main() -> opencv::Result<()> {
     let _cam_handle = spawn_camera(tx);
     highgui::named_window("Screen", highgui::WINDOW_KEEPRATIO)?;
     highgui::resize_window("Screen", 1600, 900)?;
-    
+
     //highgui::named_window("Screen", highgui::WINDOW_AUTOSIZE)?;
 
     let camera_frame = rx.recv().unwrap(); // blocking wait for first frame
@@ -196,17 +196,26 @@ fn main() -> opencv::Result<()> {
         // render boids
         while accumulator >= dt {
 
-            let mut boid_centeroid = Coord { x: 0, y: 0 };
+            let mut boid_centeroid = Coord { x: 0.0, y: 0.0 };
+            let mut boid_velocity = Coord { x: 0.0, y: 0.0 };
             for b in state.boids.iter().clone() {
                 boid_centeroid.x += b.position.x;
                 boid_centeroid.y += b.position.y;
+                boid_velocity.x += b.velocity.x;
+                boid_velocity.y += b.velocity.y;
             }
-            boid_centeroid.x /= state.boids.len() as i32;
-            boid_centeroid.y /= state.boids.len() as i32;
+            boid_centeroid.x /= state.boids.len() as f64;
+            boid_centeroid.y /= state.boids.len() as f64;
+
+            boid_velocity.x /= state.boids.len() as f64;
+            boid_velocity.y /= state.boids.len() as f64;
+
+            //let boid_positions = state.boids.iter().collect();
 
             for boid in &mut state.boids {
-                boid.update(&state.camera_frame, &mut state.rng, &boid_centeroid, &dt);
-            };
+                boid.update(&state.camera_frame, &mut state.rng, &boid_centeroid, &boid_velocity, &dt);
+            }
+
             accumulator -= dt;
             t += dt;
         }
